@@ -1,0 +1,165 @@
+{% load static %}
+<div class="col-sm-8 conversation">
+
+
+    <!-- CHAT HEADER  -->
+    <div class="row heading">
+        <div class="col-sm-2 col-md-1 col-xs-3 heading-avatar">
+            <div class="heading-avatar-icon">
+                <img src="{{group_picture.url}}">
+            </div>
+        </div>
+        <div class="col-sm-8 col-xs-7 heading-name">
+            <a class="heading-name-meta">{{group_name}}
+            </a>
+            <span class="heading-online">Online</span>
+        </div>
+        <div class="col-sm-1 col-xs-1  heading-dot pull-right">
+            <i class="fa fa-ellipsis-v fa-2x  pull-right" aria-hidden="true"></i>
+        </div>
+    </div>
+    <!-- CHAT HEADER  -->
+
+    <div class="row message" id="conversation">
+
+        <div class="row message-previous">
+            <div class="col-sm-12 previous">
+                <a onclick="previous(this)" id="ankitjain28" name="20">
+                    Show Previous Message!
+                </a>
+            </div>
+        </div>
+
+        {#  Chat content will be here #}
+
+    </div>
+
+    <!-- REPLY SECTION -->
+    <div class="row reply">
+
+        <div class="col-sm-1 col-xs-1 reply-emojis">
+            <i class="fa fa-smile-o fa-2x"></i>
+        </div>
+
+        <div class="col-sm-9 col-xs-9 reply-main">
+            <textarea class="form-control" rows="1" id="comment"></textarea>
+        </div>
+
+        <div class="col-sm-1 col-xs-1 reply-recording">
+            <i class="fa fa-microphone fa-2x" aria-hidden="true"></i>
+        </div>
+
+        <div class="col-sm-1 col-xs-1 reply-send" id='reply'>
+            <i class="fa fa-send fa-2x" aria-hidden="true"></i>
+        </div>
+
+    </div>
+    <script
+  src="https://code.jquery.com/jquery-3.4.1.min.js"
+  integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+  crossorigin="anonymous">
+    </script>
+    <script src="{% static 'js/reconnecting-websocket.min.js' %}"></script>
+    <script>
+
+
+        var username = {{ username }};
+        var chatHolder = document.querySelector("#conversation");
+        var channel_name={{ room_name_json }};
+        var user_id = '{{request.user.id}}';
+
+
+        var chatSocket = new WebSocket(
+            'ws://' + window.location.host +
+            '/ws/chat/' + String(channel_name) + '/');
+
+        // $(function () {
+        //     $('.contact').(this).data('id').click(function (e) {
+        //
+        //
+        //     })
+        // })
+        //
+        // $(function () {
+        //     $('.group').click(function (e) {
+        //         chatSocket = new WebSocket(
+        //             'ws://' + window.location.host +
+        //             '/ws/chat/' + $(this).data('id') + '/');
+        //         channel_name = $(this).data('id');
+        //         chatSocket.onopen = for_onopen;
+        //
+        //     })
+        // })
+        //
+
+        chatSocket.onopen =function(e){
+            fetchMessages();
+        };
+
+        chatSocket.onmessage = function (e) {
+            var data = JSON.parse(e.data);
+
+            if (data['command'] === 'messages') {
+                for (let i = 0; i < data['messages'].length; i++) {
+                    createMessage(data['messages'][i]);
+
+                }
+            } else if (data['command'] === 'new_message') {
+                createMessage(data['message']);
+
+            }
+        };
+
+        chatSocket.onclose = function (e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#comment').focus();
+        document.querySelector('#comment').onkeyup = function (e) {
+            if (e.keyCode === 13) {  // enter, return
+                document.querySelector('#reply').click();
+            }
+        };
+
+        document.querySelector('#reply').onclick = function (e) {
+            var messageInputDom = document.querySelector('#comment');
+            var message = messageInputDom.value;
+
+            chatSocket.send(JSON.stringify({
+                'command': 'new_message',
+                'message': message,
+                'from': username,
+                'channel_name':channel_name,
+                'user_id':user_id,
+
+
+            }));
+            messageInputDom.value = '';
+
+        };
+
+        function fetchMessages() {
+            chatSocket.send(JSON.stringify({
+              'command': 'fetch_messages',
+              'channel_name':channel_name,
+              'user_id':user_id,
+            }));
+        }
+
+        function createMessage(data) {
+            var author = data['author'];
+            var message = data['content'];
+
+            if (author === username) {
+                var messageHTML = '<div class="row message-body"> <div class="col-sm-12 message-main-sender"> <div class="sender"> <div class="message-text">' + message + ' </div> <span class="message-time pull-right">You</span> </div> </div> </div>';
+
+            } else {
+
+                var messageHTML = '<div class="row message-body"><div class="col-sm-12 message-main-receiver"><div class="receiver"> <div class="message-text">' + message + ' </div> <span class="message-time pull-right">' + author + '</span> </div> </div> </div>';
+
+            }
+            chatHolder.innerHTML += messageHTML;
+        }
+    </script>
+
+</div>
